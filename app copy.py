@@ -40,108 +40,11 @@ arquivo = st.file_uploader(
 
 if arquivo:
     if arquivo.name.endswith(".csv"):
-        df = pd.read_csv(arquivo,
-                         sep=';',
-                         encoding='cp1252',
-                         encoding_errors='replace')
+        df = pd.read_csv(arquivo)
     else:
         df = pd.read_excel(arquivo)
 
     st.success(f"Arquivo carregado com sucesso! ({df.shape[0]} registros)")
-
-    # Remove as colunas desejadas
-    df = df.drop(columns=[
-        'bairro',
-        'Bairro_Pais',
-        'Bairro_1',
-        'Cod_Distrito',
-        'Necessidade_Fisica',
-        'Necessidade_Visual',
-        'Necessidade_Auditiva',
-        'Necessidade_Mental',
-        'Necessidade_Multipla',
-        'Outras_Necessidades',
-        'Superdotado',
-        'Condutas_Tipicas',
-        'Sindrome_Down',
-        'necessidades_especiais',
-        'clNecessidades',
-        'Cod_Responsavel',
-        'Id_Grupo_Etnico',
-        'Desc_Grupo_Etnico',
-        'Documento_Estrangeiro',
-        'Numero_Cns',
-        '__Observacoes',
-        '__Tratamento',
-        'Renda_Per_Capita_Inep',
-        'Desc_Renda_Per_Capita_INEP',
-        'BOLSA_FAMILIA',
-        'BOLSA_ESCOLA',
-        'Dt_Limite_Interesse_Emprego',
-        'DESC_EAD_POLO',
-        'DT_COLACAO_GRAU',
-        'clApoios_Sociais'
-    ])
-
-    # Criar coluna alvo: 'Status' conforme a regra:
-    # 1 → Concluído
-    # 0 → Abandono, Cancelado Compulsoriamente, Cancelado Voluntariamente
-    df["Status"] = df["Desc_Sit_Matricula"].apply(
-        lambda x: 1 if str(x).strip().lower() == "concluído" else
-                (0 if str(x).strip().lower() in [
-                    "abandono",
-                    "cancelado compulsoriamente",
-                    "cancelado voluntariamente"
-                ] else None)
-    )
-
-    #### Primeiro criar as novas features ####
-
-    # Converte a coluna de data de nascimento para datetime
-    df["Dt_Nascimento"] = pd.to_datetime(df["Dt_Nascimento"], errors="coerce", dayfirst=True)
-
-    # Garante que ano_letivo_ini é numérico (caso tenha vindo como texto)
-    df["ano_letivo_ini"] = pd.to_numeric(df["ano_letivo_ini"], errors="coerce")
-
-    # Cria a nova coluna "Idade" (idade da pessoa no início do ano letivo)
-    df["Idade"] = df["ano_letivo_ini"] - df["Dt_Nascimento"].dt.year
-
-    # Garante que as colunas estão como números (caso estejam como texto)
-    df["ano_letivo_ini"] = pd.to_numeric(df["ano_letivo_ini"], errors="coerce")
-
-    df["ano_letivo_ini"] = pd.to_numeric(df["ano_letivo_ini"], errors="coerce")
-
-    # Cria nova coluna com o cálculo
-    df["Anos_Apos_Graduacao"] = df["ano_letivo_ini"] - df["Ano_Conclusao_Graduacao"]
-
-    # --- Criar novas features baseadas em cod_pessoa ---
-
-    # 1️⃣ Quantidade de matrículas por pessoa
-    contagem = df.groupby("Cod_Pessoa")["cod_matricula"].nunique().reset_index()
-    contagem.rename(columns={"cod_matricula": "n_matriculas_pessoa"}, inplace=True)
-
-    # 2️⃣ Mesclar com o dataset original
-    df = df.merge(contagem, on="Cod_Pessoa", how="left")
-
-    # 3️⃣ Criar variações derivadas
-    df["primeira_matricula"] = df.groupby("Cod_Pessoa")["cod_matricula"].transform(
-        lambda x: (x == x.min()).astype(int)
-    )
-    df["reingresso"] = (df["n_matriculas_pessoa"] > 1).astype(int)
-    df["n_matriculas_maior_que_1"] = df["n_matriculas_pessoa"].apply(lambda x: 1 if x > 1 else 0)
-
-    ### Antes de remover as colunas preciso criar o df_novos
-    df_novos = df.loc[pd.isna(df["Status"]), :].copy()
-
-    # colunas de identificação (não entram no modelo)
-    id_cols = ["Cod_Pessoa", "cod_matricula"]
-
-    # guardar identificadores
-    ids = df_novos[id_cols].copy()
-
-    df_novos.to_csv("novos_alunos.csv", index=False, encoding="utf-8-sig")
-
-    df = df_novos.copy()
 
     # ===============================
     # PRESERVAR IDENTIFICADORES
