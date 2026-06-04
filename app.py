@@ -1,6 +1,10 @@
 import streamlit as st
 import pandas as pd
 import joblib
+from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_auc_score
+import json
+
 
 # ===============================
 # CONFIGURAÇÃO INICIAL
@@ -164,8 +168,14 @@ if arquivo:
     # ===============================
     # PREDIÇÃO
     # ===============================
-    probs = pipeline.predict_proba(X)[:, 1]
+    probs = pipeline.predict_proba(X)[:, 0]
     preds = pipeline.predict(X)
+
+    with open("thresholds_xgb.json", "r") as f:
+        thresholds = json.load(f)
+
+    THRESHOLD_MEDIO = thresholds["threshold_medio"]
+    THRESHOLD_ALTO = thresholds["threshold_alto"]
 
     # ===============================
     # RESULTADO FINAL
@@ -175,9 +185,9 @@ if arquivo:
     df_resultado["pred_evasao"] = preds
 
     def classificar_risco(p):
-        if p >= 0.75:
+        if p >= THRESHOLD_ALTO:
             return "Alto risco"
-        elif p >= 0.50:
+        elif p >= THRESHOLD_MEDIO:
             return "Risco médio"
         else:
             return "Baixo risco"
